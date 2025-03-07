@@ -69,7 +69,7 @@ class App extends Component {
       let value = this.state.input1;
       console.log('Value entered = ' + value);
       let tree = this.state.myTreeData;
-      // Root is null then node will be added to the tree and made root
+
       if (tree[ 0 ].name === nullNode) {
         tree = [
           {
@@ -81,153 +81,145 @@ class App extends Component {
             ],
           },
         ];
-      }
-      // else find the correct position in the tree and add the node
-      else {
-        var rightDirection = true;
-        var leftDirection = false;
-        var previousNode = null;
-        var previousDirection = leftDirection;
-        var currentNode = tree[ 0 ];
-        var prePreviousNode = null;
-        var prevPrePreviousNode = null;
-        var isValueFound = false;
+      } else {
+        let currentNode = tree[ 0 ];
+        let parentNode = null;
+        let grandparentNode = null;
+        let direction = null;
+
         while (currentNode.name !== nullNode) {
-          prevPrePreviousNode = prePreviousNode;
-          prePreviousNode = previousNode;
-          previousNode = currentNode;
-          // this is for traversal
+          grandparentNode = parentNode;
+          parentNode = currentNode;
+
           if (parseInt(value) > parseInt(currentNode.name)) {
             currentNode = currentNode.children[ 1 ];
-            previousDirection = rightDirection;
+            direction = "right";
           } else if (parseInt(value) < parseInt(currentNode.name)) {
             currentNode = currentNode.children[ 0 ];
-            previousDirection = leftDirection;
+            direction = "left";
           } else {
-            isValueFound = true;
-            break;
+            console.log("Value already exists");
+            return;
           }
         }
-        // till here we are in the correct position to enter an element.
-        if (isValueFound === false) {
-          if (previousDirection === leftDirection) {
-            // value insertion
-            previousNode.children[ 0 ] = {
-              name: value,
-              nodeSvgShape: redColor,
-              children: [
-                { name: nullNode, nodeSvgShape: blackColor },
-                { name: nullNode, nodeSvgShape: blackColor },
-              ],
-            };
-            currentNode = previousNode.children[ 0 ];
-          } else {
-            previousNode.children[ 1 ] = {
-              name: value,
-              nodeSvgShape: redColor,
-              children: [
-                { name: nullNode, nodeSvgShape: blackColor },
-                { name: nullNode, nodeSvgShape: blackColor },
-              ],
-            };
-            currentNode = previousNode.children[ 1 ];
-          }
 
-          console.log('Grandparent node = ' + prePreviousNode);
-          console.log('Parent node = ' + previousNode);
-          console.log('Node = ' + currentNode.name);
-          // code for either color switching or rotation.
-          while (previousNode.nodeSvgShape === redColor) {
-            if (previousNode.name === prePreviousNode.children[ 0 ].name) {
-              var y = prePreviousNode.children[ 1 ];
-              if (y.nodeSvgShape === redColor) {
-                // color switching
-                previousNode.nodeSvgShape = blackColor;
-                y.nodeSvgShape = blackColor;
-                prePreviousNode.nodeSvgShape = redColor;
-                currentNode = prePreviousNode;
-              } else {
-                // rotation
-                if (currentNode.name === previousNode.children[ 1 ].name) {
-                  currentNode = previousNode;
-                  // LEFT-Rotate(T,currentNode)
-                  var temp = currentNode.children[ 1 ];
-                  currentNode.children[ 1 ] = temp.children[ 0 ];
-                  if (temp.children[ 0 ].name !== nullNode) {
-                    temp = currentNode;
-                  }
-                  currentNode = previousNode;
-                  if (previousNode.name === nullNode) {
-                    tree[ 0 ] = temp;
-                  } else if (currentNode.name === previousNode.children[ 0 ].name) {
-                    previousNode.children[ 0 ] = temp;
-                  } else {
-                    previousNode.children[ 1 ] = temp;
-                  }
-                  temp.children[ 0 ] = currentNode;
-                  previousNode = temp;
-                  // end of LEFT-Rotate(T,currentNode)
-                }
-                previousNode.nodeSvgShape = blackColor;
-                prePreviousNode.nodeSvgShape = redColor;
+        let newNode = {
+          name: value,
+          nodeSvgShape: redColor,
+          children: [
+            { name: nullNode, nodeSvgShape: blackColor },
+            { name: nullNode, nodeSvgShape: blackColor },
+          ],
+        };
 
-                // RIGHT-Rotate(T,prePreviousNode)
+        if (direction === "left") {
+          parentNode.children[ 0 ] = newNode;
+        } else {
+          parentNode.children[ 1 ] = newNode;
+        }
 
-                // end of RIGHT-Rotate(T,prePreviousNode)
-              }
+        currentNode = newNode;
+
+        // Fix violations
+        while (parentNode && parentNode.nodeSvgShape === redColor) {
+          if (grandparentNode) {
+            let isLeftChild = grandparentNode.children[ 0 ] === parentNode;
+            let uncle = isLeftChild
+              ? grandparentNode.children[ 1 ]
+              : grandparentNode.children[ 0 ];
+
+            if (uncle && uncle.nodeSvgShape === redColor) {
+              parentNode.nodeSvgShape = blackColor;
+              uncle.nodeSvgShape = blackColor;
+              grandparentNode.nodeSvgShape = redColor;
+              currentNode = grandparentNode;
+              parentNode = this.getParent(tree[ 0 ], grandparentNode.name);
+              grandparentNode = parentNode ? this.getParent(tree[ 0 ], parentNode.name) : null;
             } else {
-              var y = prePreviousNode.children[ 0 ];
-              if (y.nodeSvgShape === redColor) {
-                previousNode.nodeSvgShape = blackColor;
-                y.nodeSvgShape = blackColor;
-                prePreviousNode.nodeSvgShape = redColor;
-                currentNode = prePreviousNode;
-              } else {
-                if (currentNode.name === previousNode.children[ 0 ].name) {
-                  currentNode = previousNode;
-
-                  // RIGHT-Rotate(T,currentNode)
-                  var temp = currentNode.children[ 0 ];
-                  currentNode.children[ 0 ] = temp.children[ 1 ];
-                  if (temp.children[ 1 ].name !== nullNode) {
-                    temp = currentNode;
-                  }
-                  currentNode = previousNode;
-                  if (previousNode.name === nullNode) {
-                    tree[ 0 ] = temp;
-                  } else if (currentNode.name === previousNode.children[ 1 ].name) {
-                    previousNode.children[ 1 ] = temp;
-                  } else {
-                    previousNode.children[ 0 ] = temp;
-                  }
-                  temp.children[ 1 ] = currentNode;
-                  previousNode = temp;
-                  // end of RIGHT-Rotate(T,currentNode)
+              if (isLeftChild) {
+                if (currentNode === parentNode.children[ 1 ]) {
+                  parentNode = this.leftRotate(parentNode);
+                  grandparentNode.children[ 0 ] = parentNode;
                 }
-                previousNode.nodeSvgShape = blackColor;
-                prePreviousNode.nodeSvgShape = redColor;
+                grandparentNode = this.rightRotate(grandparentNode);
+              } else {
+                if (currentNode === parentNode.children[ 0 ]) {
+                  parentNode = this.rightRotate(parentNode);
+                  grandparentNode.children[ 1 ] = parentNode;
+                }
+                grandparentNode = this.leftRotate(grandparentNode);
+              }
 
-                // LEFT-Rotate(T,prePreviousNode)
+              parentNode.nodeSvgShape = blackColor;
+              grandparentNode.nodeSvgShape = redColor;
 
-                // end of LEFT-Rotate(T,prePreviousNode)
-              } // end else
-            } // end else
-          } // end while
-          tree[ 0 ].nodeSvgShape = blackColor;
+              if (!this.getParent(tree[ 0 ], grandparentNode.name)) {
+                tree[ 0 ] = parentNode;  // Ensure new root is assigned correctly
+              }
+            }
+          }
         }
+
+        tree[ 0 ].nodeSvgShape = blackColor; // Ensure root remains black
       }
-      this.myTreeData = tree;
+
+      // 🔥 Ensure tree state updates after insertion
       this.setState({
         input1: '',
-        myTreeData: tree,
+        myTreeData: [ ...tree ],  // 🛠 Fix: Spread operator to force React re-render
         forceMount: !this.state.forceMount,
       });
-    }
 
-    if (this.state.searchPath !== '') {
-      this.state.searchPath = '';
     }
+    console.log(JSON.stringify(this.state.myTreeData, null, 2));
+
   };
+
+  leftRotate = (node, parent) => {
+    if (!node.children[ 1 ]) return node;  // Prevent rotating a missing node
+    let newRoot = node.children[ 1 ];
+    let temp = newRoot.children ? newRoot.children[ 0 ] : null;
+    newRoot.children[ 0 ] = node;
+    node.children[ 1 ] = temp;
+    if (parent) {
+      if (parent.children[ 0 ] === node) parent.children[ 0 ] = newRoot;
+      else parent.children[ 1 ] = newRoot;
+    }
+    return newRoot;
+  };
+
+  rightRotate = (node, parent) => {
+    if (!node.children[ 0 ]) return node;
+    let newRoot = node.children[ 0 ];
+    let temp = newRoot.children ? newRoot.children[ 1 ] : null;
+    newRoot.children[ 1 ] = node;
+    node.children[ 0 ] = temp;
+    if (parent) {
+      if (parent.children[ 0 ] === node) parent.children[ 0 ] = newRoot;
+      else parent.children[ 1 ] = newRoot;
+    }
+    return newRoot;
+  };
+
+
+
+
+  // Find parent helper
+  getParent = (root, childName) => {
+    if (!root || root.name === nullNode) return null;
+    if (
+      (root.children[ 0 ] && root.children[ 0 ].name === childName) ||
+      (root.children[ 1 ] && root.children[ 1 ].name === childName)
+    ) {
+      return root;
+    }
+    return (
+      this.getParent(root.children[ 0 ], childName) ||
+      this.getParent(root.children[ 1 ], childName)
+    );
+  };
+
+
 
   searchNode = () => {
     if (this.state.input2 !== '') {
@@ -293,20 +285,20 @@ class App extends Component {
         <div style={{ marginTop: -5, height: 61, backgroundColor: '#006633', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <h1 style={{ paddingLeft: 10, paddingTop: 10, marginTop: 15, color: '#ffCC33', display: 'flex', alignItems: 'center' }}>
             <span style={{ color: 'red' }}>Red </span>&nbsp; <span style={{ color: 'black' }}> Black &nbsp; </span> Tree Visualization
-            </h1>
-            <div style={{position:"absolute", right:10,display: 'flex', alignItems: 'center', justifyContent: 'center',gap:5}}>
-              <a href="https://github.com/SagarEGme/red-black-tree" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 20 }}>
-                <h1 style={{ color: "yellow" }}>
-                  <BsGithub />
-                </h1>
-              </a>
-              {/* LinkedIn Link */}
-              <a href="https://www.linkedin.com/in/sagar-regmi-5037991a5/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 10 }}>
-                <h1 style={{ color: "yellow" }}>
-                  <SiLinkedin />
-                </h1>
-              </a>
-            </div>
+          </h1>
+          <div style={{ position: "absolute", right: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            <a href="https://github.com/SagarEGme/red-black-tree" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 20 }}>
+              <h1 style={{ color: "yellow" }}>
+                <BsGithub />
+              </h1>
+            </a>
+            {/* LinkedIn Link */}
+            <a href="https://www.linkedin.com/in/sagar-regmi-5037991a5/" target="_blank" rel="noopener noreferrer" style={{ marginLeft: 10 }}>
+              <h1 style={{ color: "yellow" }}>
+                <SiLinkedin />
+              </h1>
+            </a>
+          </div>
         </div>
 
         <br />
