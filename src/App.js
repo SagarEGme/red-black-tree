@@ -68,7 +68,7 @@ class App extends Component {
     if (this.state.input1 !== '') {
       let value = this.state.input1;
       console.log('Value entered = ' + value);
-      let tree = this.state.myTreeData;
+      let tree = [ ...this.state.myTreeData ]; // Create a deep clone
 
       if (tree[ 0 ].name === nullNode) {
         tree = [
@@ -82,127 +82,160 @@ class App extends Component {
           },
         ];
       } else {
-        let currentNode = tree[ 0 ];
-        let parentNode = null;
-        let grandparentNode = null;
-        let direction = null;
-
-        while (currentNode.name !== nullNode) {
-          grandparentNode = parentNode;
-          parentNode = currentNode;
-
-          if (parseInt(value) > parseInt(currentNode.name)) {
-            currentNode = currentNode.children[ 1 ];
-            direction = "right";
-          } else if (parseInt(value) < parseInt(currentNode.name)) {
-            currentNode = currentNode.children[ 0 ];
-            direction = "left";
-          } else {
-            console.log("Value already exists");
-            return;
-          }
-        }
-
-        let newNode = {
-          name: value,
-          nodeSvgShape: redColor,
-          children: [
-            { name: nullNode, nodeSvgShape: blackColor },
-            { name: nullNode, nodeSvgShape: blackColor },
-          ],
-        };
-
-        if (direction === "left") {
-          parentNode.children[ 0 ] = newNode;
-        } else {
-          parentNode.children[ 1 ] = newNode;
-        }
-
-        currentNode = newNode;
-
-        // Fix violations
-        while (parentNode && parentNode.nodeSvgShape === redColor) {
-          if (grandparentNode) {
-            let isLeftChild = grandparentNode.children[ 0 ] === parentNode;
-            let uncle = isLeftChild
-              ? grandparentNode.children[ 1 ]
-              : grandparentNode.children[ 0 ];
-
-            if (uncle && uncle.nodeSvgShape === redColor) {
-              parentNode.nodeSvgShape = blackColor;
-              uncle.nodeSvgShape = blackColor;
-              grandparentNode.nodeSvgShape = redColor;
-              currentNode = grandparentNode;
-              parentNode = this.getParent(tree[ 0 ], grandparentNode.name);
-              grandparentNode = parentNode ? this.getParent(tree[ 0 ], parentNode.name) : null;
-            } else {
-              if (isLeftChild) {
-                if (currentNode === parentNode.children[ 1 ]) {
-                  parentNode = this.leftRotate(parentNode);
-                  grandparentNode.children[ 0 ] = parentNode;
-                }
-                grandparentNode = this.rightRotate(grandparentNode);
-              } else {
-                if (currentNode === parentNode.children[ 0 ]) {
-                  parentNode = this.rightRotate(parentNode);
-                  grandparentNode.children[ 1 ] = parentNode;
-                }
-                grandparentNode = this.leftRotate(grandparentNode);
-              }
-
-              parentNode.nodeSvgShape = blackColor;
-              grandparentNode.nodeSvgShape = redColor;
-
-              if (!this.getParent(tree[ 0 ], grandparentNode.name)) {
-                tree[ 0 ] = parentNode;  // Ensure new root is assigned correctly
-              }
-            }
-          }
-        }
-
-        tree[ 0 ].nodeSvgShape = blackColor; // Ensure root remains black
+        this.insertNodeHelper(tree, value);
       }
 
-      // 🔥 Ensure tree state updates after insertion
+      // Ensure tree state updates after insertion
       this.setState({
         input1: '',
-        myTreeData: [ ...tree ],  // 🛠 Fix: Spread operator to force React re-render
+        myTreeData: tree,
         forceMount: !this.state.forceMount,
       });
-
     }
     console.log(JSON.stringify(this.state.myTreeData, null, 2));
-
   };
 
-  leftRotate = (node, parent) => {
-    if (!node.children[ 1 ]) return node;  // Prevent rotating a missing node
-    let newRoot = node.children[ 1 ];
-    let temp = newRoot.children ? newRoot.children[ 0 ] : null;
-    newRoot.children[ 0 ] = node;
-    node.children[ 1 ] = temp;
-    if (parent) {
-      if (parent.children[ 0 ] === node) parent.children[ 0 ] = newRoot;
-      else parent.children[ 1 ] = newRoot;
+  // Helper function to insert a node and fix Red-Black Tree properties
+  insertNodeHelper = (tree, value) => {
+    let currentNode = tree[ 0 ];
+    let path = []; // Track path to insertion point
+
+    // Find insertion point
+    while (currentNode.name !== nullNode) {
+      path.push(currentNode);
+      if (parseInt(value) > parseInt(currentNode.name)) {
+        currentNode = currentNode.children[ 1 ];
+      } else if (parseInt(value) < parseInt(currentNode.name)) {
+        currentNode = currentNode.children[ 0 ];
+      } else {
+        console.log("Value already exists");
+        return; // Value already exists
+      }
     }
-    return newRoot;
-  };
 
-  rightRotate = (node, parent) => {
-    if (!node.children[ 0 ]) return node;
-    let newRoot = node.children[ 0 ];
-    let temp = newRoot.children ? newRoot.children[ 1 ] : null;
-    newRoot.children[ 1 ] = node;
-    node.children[ 0 ] = temp;
-    if (parent) {
-      if (parent.children[ 0 ] === node) parent.children[ 0 ] = newRoot;
-      else parent.children[ 1 ] = newRoot;
+    // Insert new node
+    let newNode = {
+      name: value,
+      nodeSvgShape: redColor,
+      children: [
+        { name: nullNode, nodeSvgShape: blackColor },
+        { name: nullNode, nodeSvgShape: blackColor },
+      ],
+    };
+
+    if (path.length === 0) {
+      // Tree was empty
+      tree[ 0 ] = newNode;
+      tree[ 0 ].nodeSvgShape = blackColor; // Root must be black
+      return;
     }
-    return newRoot;
+
+    // Connect new node to parent
+    let parent = path[ path.length - 1 ];
+    if (parseInt(value) < parseInt(parent.name)) {
+      parent.children[ 0 ] = newNode;
+    } else {
+      parent.children[ 1 ] = newNode;
+    }
+
+    // Fix Red-Black Tree violations
+    this.fixRedBlackTreeViolations(tree, path, newNode);
   };
 
+  // Fix Red-Black Tree violations after insertion
+  fixRedBlackTreeViolations = (tree, path, node) => {
+    // If node is root, color it black and return
+    if (path.length === 0) {
+      node.nodeSvgShape = blackColor;
+      return;
+    }
 
+    // Only need to fix if parent is red
+    let parentIndex = path.length - 1;
+    let parent = path[ parentIndex ];
+    if (parent.nodeSvgShape !== redColor) {
+      return;
+    }
 
+    // If parent is the root, just make it black
+    if (parentIndex === 0) {
+      parent.nodeSvgShape = blackColor;
+      return;
+    }
+
+    let grandparentIndex = parentIndex - 1;
+    let grandparent = path[ grandparentIndex ];
+    let isParentLeftChild = grandparent.children[ 0 ] === parent;
+    let uncle = isParentLeftChild ? grandparent.children[ 1 ] : grandparent.children[ 0 ];
+
+    if (uncle && uncle.nodeSvgShape === redColor) {
+      // Case 1: Uncle is red - recolor
+      parent.nodeSvgShape = blackColor;
+      uncle.nodeSvgShape = blackColor;
+      grandparent.nodeSvgShape = redColor;
+
+      this.fixRedBlackTreeViolations(tree, path.slice(0, grandparentIndex), grandparent);
+    } else {
+      let isNodeInner = (isParentLeftChild && node === parent.children[ 1 ]) ||
+        (!isParentLeftChild && node === parent.children[ 0 ]);
+
+      if (isNodeInner) {
+        // Case 2: Node is inner grandchild - need to rotate parent first
+        if (isParentLeftChild) {
+          this.leftRotate(parent);
+          parent = node; // After rotation, node becomes new parent
+        } else {
+          this.rightRotate(parent);
+          parent = node; // After rotation, node becomes new parent
+        }
+        // Update path with new parent
+        path[ parentIndex ] = parent;
+      }
+
+      // Case 3: Node is outer grandchild (or now outer after Case 2)
+      parent.nodeSvgShape = blackColor;
+      grandparent.nodeSvgShape = redColor;
+
+      if (isParentLeftChild) {
+        this.rightRotate(grandparent);
+      } else {
+        this.leftRotate(grandparent);
+      }
+
+      // If grandparent was the root, update the tree
+      if (grandparentIndex === 0) {
+        tree[ 0 ] = parent;
+      } else {
+        // Update the pointer from great-grandparent to parent
+        let greatGrandparent = path[ grandparentIndex - 1 ];
+        if (greatGrandparent.children[ 0 ] === grandparent) {
+          greatGrandparent.children[ 0 ] = parent;
+        } else {
+          greatGrandparent.children[ 1 ] = parent;
+        }
+      }
+    }
+  };
+
+  // Left rotation
+  leftRotate = (node) => {
+    let rightChild = node.children[ 1 ];
+    // Move rightChild's left child to node's right
+    node.children[ 1 ] = rightChild.children[ 0 ];
+    // Make node the left child of rightChild
+    rightChild.children[ 0 ] = node;
+    return rightChild;
+  };
+
+  // Right rotation
+  rightRotate = (node) => {
+    let leftChild = node.children[ 0 ];
+    // Move leftChild's right child to node's left
+    node.children[ 0 ] = leftChild.children[ 1 ];
+    // Make node the right child of leftChild
+    leftChild.children[ 1 ] = node;
+    return leftChild;
+  };
 
   // Find parent helper
   getParent = (root, childName) => {
@@ -219,44 +252,63 @@ class App extends Component {
     );
   };
 
-
-
   searchNode = () => {
     if (this.state.input2 !== '') {
       var value = parseInt(this.state.input2, 10);
-      var tmp = this.state.myTreeData;
+      var tmp = JSON.parse(JSON.stringify(this.state.myTreeData)); // Deep clone
       var currentNode = tmp[ 0 ];
       var route = '';
       var isFound = false;
+
+      // Reset previous highlights
+      this.resetHighlights(tmp[ 0 ]);
+
       while (currentNode.name !== nullNode) {
         route += currentNode.name + ', ';
         console.log(currentNode.name);
         currentNode.nodeSvgShape = yellowColor;
-        this.setState({
-          myTreeData: tmp,
-          forceMount: !this.state.forceMount,
-        });
+
         if (parseInt(currentNode.name) === value) {
           isFound = true;
-          // alert('Value Found!');
+          break;
         } else if (parseInt(currentNode.name) > value) {
           currentNode = currentNode.children[ 0 ];
         } else {
           currentNode = currentNode.children[ 1 ];
         }
-        if (isFound === true) break;
       }
+
       if (isFound === false) {
         alert('Value not found!');
       }
-      if (route[ route.length - 2 ] === ',') {
+
+      if (route && route.length >= 2) {
         route = route.substring(0, route.length - 2);
       }
+
       this.setState({
         input2: '',
+        myTreeData: tmp,
+        forceMount: !this.state.forceMount,
         searchPath: route,
       });
     }
+  };
+
+  // Reset node highlights
+  resetHighlights = (node) => {
+    if (!node || node.name === nullNode) return;
+
+    // Reset node color based on if it's red or black
+    if (node.nodeSvgShape === yellowColor) {
+      // Determine original color (this is an approximation, you might need to store the original color)
+      node.nodeSvgShape = node.name === 'root' ? blackColor :
+        (Math.random() > 0.5 ? redColor : blackColor);
+    }
+
+    // Recursively reset children
+    this.resetHighlights(node.children[ 0 ]);
+    this.resetHighlights(node.children[ 1 ]);
   };
 
   handleInputChange = name => event => {
@@ -442,4 +494,5 @@ const closeIconStyles = {
   fontWeight: "bold",
   color: "red",
 };
+
 export default App;
